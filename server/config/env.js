@@ -5,6 +5,7 @@ const clean = (value) =>
 
 const MONGO_ENV_KEYS = [
   'MONGO_URI',
+  'MONGO_URI_ATLAS',
   'MONGODB_URI',
   'MONGODB_URL',
   'MONGO_URL',
@@ -19,11 +20,28 @@ const isLocalUri = (uri) =>
   /mongodb(\+srv)?:\/\/(127\.0\.0\.1|localhost)/i.test(uri);
 
 const resolveMongoUri = () => {
+  const candidates = [];
+
   for (const key of MONGO_ENV_KEYS) {
     const uri = clean(process.env[key]);
     if (uri.startsWith('mongodb')) {
-      return { uri, source: key };
+      candidates.push({ uri, source: key });
     }
+  }
+
+  if (candidates.length > 0) {
+    const atlas = candidates.find((c) => c.uri.includes('mongodb+srv'));
+    if (atlas) return atlas;
+
+    if (process.env.RENDER || process.env.NODE_ENV === 'production') {
+      const remote = candidates.find((c) => !isLocalUri(c.uri));
+      if (remote) return remote;
+    } else {
+      const local = candidates.find((c) => isLocalUri(c.uri));
+      if (local) return local;
+    }
+
+    return candidates[0];
   }
 
   if (process.env.NODE_ENV === 'production' || process.env.RENDER) {

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "check-db": "node scripts/check-db.js"
+    "check-db": "node scripts/check-db.js",
+    "setup-atlas": "node scripts/setup-atlas.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
