@@ -1,20 +1,23 @@
 import axios from 'axios';
 
-// Create a pre-configured axios instance
+// Create axios instance
 const api = axios.create({
-  baseURL: 'https://study-app-1-dyv3.onrender.com',
+  baseURL: 'https://study-app-1-dyv3.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
-// Request interceptor to dynamically inject the bearer JWT token
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('study_token');
+
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {
@@ -22,15 +25,16 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle authorization errors (e.g. expired tokens)
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
-    // If backend returns 401 Unauthorized, clean state and redirect to login
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('study_token');
       localStorage.removeItem('study_user');
-      // If we are not already on register or login page, redirect
+
+      // Redirect only if not already on auth pages
       if (
         window.location.pathname !== '/login' &&
         window.location.pathname !== '/register'
@@ -38,6 +42,7 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+
     return Promise.reject(error);
   }
 );
