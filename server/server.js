@@ -1,51 +1,17 @@
 require('dotenv').config();
 
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
 
+const corsMiddleware = require('./middleware/cors');
 const connectDB = require('./config/db');
 
 const app = express();
 
 app.set('trust proxy', 1);
 
-const defaultClientOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'https://study-app-liart.vercel.app',
-];
-
-const allowedOrigins = [
-  ...defaultClientOrigins,
-  ...(process.env.CLIENT_URL || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-];
-
-const isAllowedOrigin = (origin) => {
-  if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
-  // Vercel production + preview deployments
-  if (/^https:\/\/[\w.-]+\.vercel\.app$/i.test(origin)) return true;
-  return false;
-};
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (isAllowedOrigin(origin)) {
-        callback(null, origin || true);
-      } else {
-        callback(null, false);
-      }
-    },
-    credentials: false,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+// CORS must be first — handles OPTIONS preflight before any other logic
+app.use(corsMiddleware);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -105,17 +71,12 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-const startServer = async () => {
-  try {
-    await connectDB();
+// Start HTTP server immediately so CORS/preflight always works on Render
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error.message);
-    process.exit(1);
-  }
-};
-
-startServer();
+  connectDB().catch((error) => {
+    console.error('MongoDB connection failed:', error.message);
+    console.error('API is up but auth/data routes will return 503 until MONGO_URI is fixed.');
+  });
+});
