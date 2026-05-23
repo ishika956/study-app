@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create a pre-configured axios instance
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://study-app-1-dyv3.onrender.com',
   headers: {
     'Content-Type': 'application/json',
   },
