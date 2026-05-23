@@ -1,12 +1,19 @@
+const dns = require('dns');
 const mongoose = require('mongoose');
 const { resolveMongoUri, validateMongoUriForDeploy, maskUri } = require('./env');
 
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 let lastConnectionError = null;
-let isConnecting = false;
+let connectionPromise = null;
+
+const isRender = Boolean(process.env.RENDER);
 
 const mongooseOptions = {
-  serverSelectionTimeoutMS: 30000,
-  connectTimeoutMS: 30000,
+  serverSelectionTimeoutMS: isRender ? 60000 : 30000,
+  connectTimeoutMS: isRender ? 60000 : 30000,
   socketTimeoutMS: 45000,
   maxPoolSize: 10,
   autoIndex: true,
@@ -26,44 +33,55 @@ const connectDB = async () => {
     throw new Error(deployError);
   }
 
-  console.log(`MongoDB target (${source}): ${maskUri(uri)}`);
-
   if (mongoose.connection.readyState === 1) {
     return mongoose.connection;
   }
 
-  if (isConnecting) {
-    return mongoose.connection;
+  if (connectionPromise) {
+    return connectionPromise;
   }
 
-  isConnecting = true;
+  console.log(`MongoDB target (${source}): ${maskUri(uri)}`);
   lastConnectionError = null;
 
-  try {
-    const conn = await mongoose.connect(uri, mongooseOptions);
-    console.log(`MongoDB Connected (${source}): ${conn.connection.host}`);
-    return conn;
-  } catch (err) {
-    lastConnectionError = err.message;
-    console.error(`MongoDB connection error: ${err.message}`);
-    throw err;
-  } finally {
-    isConnecting = false;
-  }
+  connectionPromise = mongoose
+    .connect(uri, mongooseOptions)
+    .then((conn) => {
+      console.log(`MongoDB Connected (${source}): ${conn.connection.host}`);
+      return conn;
+    })
+    .catch((err) => {
+      lastConnectionError = err.message;
+      console.error(`MongoDB connection error: ${err.message}`);
+      throw err;
+    })
+    .finally(() => {
+      connectionPromise = null;
+    });
+
+  return connectionPromise;
 };
 
 const connectWithRetry = async (attempt = 1) => {
-  const maxAttempts = 12;
+  const maxAttempts = 15;
 
   try {
     await connectDB();
   } catch (error) {
+    if (mongoose.connection.readyState !== 0) {
+      try {
+        await mongoose.disconnect();
+      } catch {
+        /* ignore */
+      }
+    }
+
     if (attempt >= maxAttempts) {
       console.error('MongoDB: max connection attempts reached.');
       return;
     }
 
-    const delay = Math.min(5000 * attempt, 30000);
+    const delay = Math.min(4000 * attempt, 30000);
     console.log(`MongoDB: retry ${attempt}/${maxAttempts} in ${delay / 1000}s...`);
 
     setTimeout(() => {
@@ -72,33 +90,49 @@ const connectWithRetry = async (attempt = 1) => {
   }
 };
 
-const waitForDb = async (timeoutMs = 20000) => {
-  if (mongoose.connection.readyState === 1) {
-    return true;
+const waitForDb = async (timeoutMs = isRender ? 60000 : 30000) => {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (mongoose.connection.readyState === 1) {
+      return true;
+    }
+
+    if (!connectionPromise && mongoose.connection.readyState !== 2) {
+      try {
+        await connectDB();
+      } catch {
+        /* logged in connectDB */
+      }
+    } else if (connectionPromise) {
+      try {
+        await connectionPromise;
+      } catch {
+        /* will retry loop */
+      }
+    }
+
+    if (mongoose.connection.readyState === 1) {
+      return true;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  try {
-    await Promise.race([
-      connectDB(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Connection timeout')), timeoutMs)
-      ),
-    ]);
-    return mongoose.connection.readyState === 1;
-  } catch {
-    return false;
-  }
+  return mongoose.connection.readyState === 1;
 };
 
 const getDbStatus = () => {
   const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
   const readyState = mongoose.connection.readyState;
+  const { uri } = resolveMongoUri();
 
   return {
     status: states[readyState] || 'unknown',
     readyState,
     connected: readyState === 1,
-    configured: Boolean(resolveMongoUri().uri),
+    configured: Boolean(uri),
+    usingAtlas: Boolean(uri && uri.includes('mongodb+srv')),
     lastError: lastConnectionError,
   };
 };

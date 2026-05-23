@@ -19,15 +19,31 @@ const getDbHint = () => {
     return 'MongoDB cluster hostname is invalid. Copy a fresh connection string from MongoDB Atlas.';
   }
 
-  if (lastError?.includes('IP') || lastError?.includes('whitelist')) {
-    return 'In MongoDB Atlas → Network Access → allow 0.0.0.0/0 so Render can connect.';
+  if (
+    lastError?.includes('IP') ||
+    lastError?.includes('whitelist') ||
+    lastError?.includes('Could not connect to any servers')
+  ) {
+    return 'Atlas blocked the connection. Go to MongoDB Atlas → Network Access → ADD IP ADDRESS → Allow Access from Anywhere (0.0.0.0/0) → Confirm. Wait 2 minutes, then retry.';
   }
 
-  return 'Check MONGO_URI on Render and MongoDB Atlas Network Access (0.0.0.0/0).';
+  if (lastError?.includes('authentication failed') || lastError?.includes('bad auth')) {
+    return 'Wrong Atlas username or password. Reset password in Atlas → Database Access, then update MONGO_URI on Render.';
+  }
+
+  if (lastError?.includes('querySrv') || lastError?.includes('ECONNREFUSED')) {
+    return 'DNS/network blocked Atlas. In Atlas → Network Access allow 0.0.0.0/0. Ensure cluster is not paused.';
+  }
+
+  if (lastError?.includes('timed out')) {
+    return 'Atlas is slow to connect. Wait 1 minute and refresh. Confirm cluster is active in Atlas dashboard.';
+  }
+
+  return 'Check MONGO_URI on Render matches server/.env MONGO_URI_ATLAS. Atlas Network Access: 0.0.0.0/0.';
 };
 
 const ensureDb = async (res) => {
-  const connected = await waitForDb(25000);
+  const connected = await waitForDb(process.env.RENDER ? 60000 : 30000);
 
   if (!connected) {
     res.status(503).json({

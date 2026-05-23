@@ -33,15 +33,16 @@ app.get('/api/health', async (req, res) => {
     });
   }
 
-  const connected = await waitForDb(25000);
+  const connected = await waitForDb(process.env.RENDER ? 60000 : 30000);
+  const after = getDbStatus();
 
   if (!connected) {
     return res.status(503).json({
       status: 'error',
-      db: dbInfo.status,
+      db: after.status,
       message: 'Database is not connected',
       hint: getDbHint(),
-      error: dbInfo.lastError || undefined,
+      error: after.lastError || undefined,
     });
   }
 
