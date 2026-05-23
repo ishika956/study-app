@@ -34,12 +34,21 @@ const resolveMongoUri = () => {
     if (atlas) return atlas;
 
     if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-      const remote = candidates.find((c) => !isLocalUri(c.uri));
-      if (remote) return remote;
-    } else {
-      const local = candidates.find((c) => isLocalUri(c.uri));
-      if (local) return local;
+      // On Render, never use localhost — only cloud URIs
+      const remote = candidates.filter((c) => !isLocalUri(c.uri));
+      if (remote.length > 0) return remote[0];
+
+      return {
+        uri: null,
+        source: null,
+        error:
+          'On Render, MONGO_URI must be your Atlas mongodb+srv://... string. ' +
+          'Open Render Dashboard → Environment → delete localhost MONGO_URI → paste Atlas URI.',
+      };
     }
+
+    const local = candidates.find((c) => isLocalUri(c.uri));
+    if (local) return local;
 
     return candidates[0];
   }

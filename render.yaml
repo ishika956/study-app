@@ -1,3 +1,7 @@
+# Render Blueprint — after deploy, you MUST set MONGO_URI manually in the dashboard.
+# Atlas → Network Access → allow 0.0.0.0/0
+# See FIX_DATABASE.md for the full connection string format.
+
 services:
   - type: web
     name: study-app-api
@@ -9,9 +13,13 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # REQUIRED: paste your MongoDB Atlas URI in Render Dashboard → Environment
+      # Example: mongodb+srv://user:pass@cluster0.xxx.mongodb.net/studyapp?retryWrites=true&w=majority
       - key: MONGO_URI
         sync: false
+      - key: MONGO_URI_ATLAS
+        sync: false
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: CLIENT_URL
         value: https://study-app-liart.vercel.app

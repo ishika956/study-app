@@ -43,15 +43,15 @@ const pickBestMongoUri = () => {
   return local || candidates[0];
 };
 
-// Load both .env files (server overrides duplicate keys)
+// Bug #2 fix: load root first, then server/.env OVERRIDES (server wins)
 if (fs.existsSync(rootEnv)) {
   dotenv.config({ path: rootEnv });
 }
 if (fs.existsSync(serverEnv)) {
-  dotenv.config({ path: serverEnv });
+  dotenv.config({ path: serverEnv, override: true });
 }
 
-// Always prefer Atlas/cloud URI over localhost when both exist
+// Render/Vercel dashboard vars are already in process.env — never overwrite with empty file values
 const best = pickBestMongoUri();
 if (best) {
   process.env.MONGO_URI = best.uri;
