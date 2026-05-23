@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { resolveMongoUri } = require('./env');
+const { resolveMongoUri, validateMongoUriForDeploy, maskUri } = require('./env');
 
 let lastConnectionError = null;
 let isConnecting = false;
@@ -19,6 +19,14 @@ const connectDB = async () => {
     lastConnectionError = error;
     throw new Error(error);
   }
+
+  const deployError = validateMongoUriForDeploy(uri);
+  if (deployError) {
+    lastConnectionError = deployError;
+    throw new Error(deployError);
+  }
+
+  console.log(`MongoDB target (${source}): ${maskUri(uri)}`);
 
   if (mongoose.connection.readyState === 1) {
     return mongoose.connection;

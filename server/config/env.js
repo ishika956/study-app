@@ -12,6 +12,12 @@ const MONGO_ENV_KEYS = [
   'ATLAS_URI',
 ];
 
+const maskUri = (uri) =>
+  uri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
+
+const isLocalUri = (uri) =>
+  /mongodb(\+srv)?:\/\/(127\.0\.0\.1|localhost)/i.test(uri);
+
 const resolveMongoUri = () => {
   for (const key of MONGO_ENV_KEYS) {
     const uri = clean(process.env[key]);
@@ -25,11 +31,28 @@ const resolveMongoUri = () => {
       uri: null,
       source: null,
       error:
-        'MONGO_URI is not set on Render. Go to Render → your service → Environment → add MONGO_URI with your MongoDB Atlas connection string.',
+        'MONGO_URI is not set on Render. Go to Render Dashboard → your service → Environment → add MONGO_URI (MongoDB Atlas connection string). .env files on your PC are NOT uploaded to Render.',
     };
   }
 
   return { uri: 'mongodb://127.0.0.1:27017/studyapp', source: 'default' };
+};
+
+const validateMongoUriForDeploy = (uri) => {
+  if (!uri) return null;
+
+  if ((process.env.RENDER || process.env.NODE_ENV === 'production') && isLocalUri(uri)) {
+    return (
+      'MONGO_URI points to localhost (127.0.0.1). Render cannot use your PC database. ' +
+      'Set MONGO_URI in Render Environment to a mongodb+srv://... Atlas connection string.'
+    );
+  }
+
+  if (!uri.includes('mongodb.net') && isLocalUri(uri) && process.env.RENDER) {
+    return 'Use MongoDB Atlas (mongodb+srv://...) in Render Environment, not localhost.';
+  }
+
+  return null;
 };
 
 const isMongoConfigured = () => {
@@ -57,5 +80,7 @@ module.exports = {
   resolveMongoUri,
   resolveJwtSecret,
   isMongoConfigured,
+  validateMongoUriForDeploy,
+  maskUri,
   clean,
 };

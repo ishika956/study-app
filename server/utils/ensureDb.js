@@ -4,7 +4,11 @@ const getDbHint = () => {
   const { configured, lastError } = getDbStatus();
 
   if (!configured) {
-    return 'Set MONGO_URI in Render Environment to your MongoDB Atlas connection string.';
+    return 'Set MONGO_URI in Render Dashboard → Environment (not .env.example). Use MongoDB Atlas mongodb+srv://...';
+  }
+
+  if (lastError?.includes('localhost') || lastError?.includes('127.0.0.1')) {
+    return 'MONGO_URI uses localhost. Render needs MongoDB Atlas (mongodb+srv://...). Update Render Environment variables.';
   }
 
   if (lastError?.includes('authentication failed')) {
