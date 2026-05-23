@@ -13,7 +13,7 @@ connectDB();
 
 // Setup middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: "https://study-app-liart.vercel.app",
   credentials: true
 }));
 app.use(express.json());
