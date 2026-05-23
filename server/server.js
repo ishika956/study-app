@@ -88,5 +88,19 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 
+  const { uri, source } = require('./config/env').resolveMongoUri();
+  if (uri && (uri.includes('127.0.0.1') || uri.includes('localhost'))) {
+    console.warn('-------------------------------------------------------');
+    console.warn('WARNING: MONGO_URI uses localhost (127.0.0.1).');
+    console.warn('This works ONLY on your PC. Render/Vercel need Atlas:');
+    console.warn('mongodb+srv://USER:PASS@cluster....mongodb.net/studyapp');
+    console.warn('Set that in Render Dashboard → Environment → MONGO_URI');
+    console.warn('-------------------------------------------------------');
+  } else if (!uri) {
+    console.warn('WARNING: MONGO_URI is not set. Database will not connect.');
+  } else {
+    console.log(`MongoDB config loaded from ${source}`);
+  }
+
   connectWithRetry();
 });
