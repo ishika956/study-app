@@ -46,11 +46,7 @@ const TabDocuments = ({ courseId }) => {
     const toastId = toast.loading('Uploading document...');
     
     try {
-      const response = await api.post(`/docs/${courseId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post(`/docs/${courseId}`, formData);
       
       setDocs([response.data, ...docs]);
       toast.success('Document uploaded successfully!', { id: toastId });

@@ -158,3 +158,33 @@ This launches:
 - **Vite React Client** on `http://localhost:3000` (which automatically proxies requests to `/api` directly to port `5000`).
 
 Open **[http://localhost:3000](http://localhost:3000)** in your web browser, register your account, and start managing your learning journey!
+
+---
+
+## 🌐 Deployment (Vercel + Render)
+
+### Backend on Render
+
+1. Create a **Web Service** with **Root Directory** set to `server`.
+2. **Build command:** `npm install` · **Start command:** `npm start`
+3. Add environment variables (see `.env.example`):
+   - `MONGO_URI` — MongoDB Atlas connection string (Atlas → Network Access → allow `0.0.0.0/0` for Render)
+   - `JWT_SECRET` — long random string
+   - `CLIENT_URL` — `https://study-app-liart.vercel.app` (comma-separate extra origins if needed)
+4. Health check path: `/api/health`
+
+### Frontend on Vercel
+
+1. Import the repo; leave **Root Directory** empty (repo root) so root `vercel.json` is used, **or** set Root Directory to `client` and use the rewrites from `client/vercel.json` if you add one.
+2. Add environment variable:
+   - `VITE_API_URL` = `https://study-app-1-dyv3.onrender.com` (your Render URL, no trailing slash)
+3. Redeploy after changing env vars.
+
+### Common issues
+
+| Symptom | Fix |
+|--------|-----|
+| Login/register fails / network error | Set `VITE_API_URL` on Vercel; confirm Render service is awake (free tier cold start ~30–60s) |
+| CORS error in browser console | Set `CLIENT_URL` on Render to your exact Vercel URL |
+| 500 on auth | Check `MONGO_URI` on Render and Atlas IP whitelist |
+| Refresh on `/course/...` shows 404 | Ensure `vercel.json` rewrites are deployed |

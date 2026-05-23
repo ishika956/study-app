@@ -1,15 +1,25 @@
 import axios from 'axios';
 
-// Create axios instance
+const resolveBaseURL = () => {
+  const configured = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+
+  if (configured) {
+    return `${configured}/api`;
+  }
+
+  // Local dev: Vite proxies /api to localhost:5000
+  if (import.meta.env.DEV) {
+    return '/api';
+  }
+
+  // Production fallback when VITE_API_URL is not set on Vercel
+  return 'https://study-app-1-dyv3.onrender.com/api';
+};
+
 const api = axios.create({
-  baseURL: 'https://study-app-1-dyv3.onrender.com/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
+  baseURL: resolveBaseURL(),
 });
 
-// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('study_token');
@@ -18,14 +28,17 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    } else if (!config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor
 api.interceptors.response.use(
   (response) => response,
 
@@ -34,7 +47,6 @@ api.interceptors.response.use(
       localStorage.removeItem('study_token');
       localStorage.removeItem('study_user');
 
-      // Redirect only if not already on auth pages
       if (
         window.location.pathname !== '/login' &&
         window.location.pathname !== '/register'
