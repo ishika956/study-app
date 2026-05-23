@@ -2,13 +2,27 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+
+const ensureDb = (res) => {
+  if (mongoose.connection.readyState !== 1) {
+    res.status(503).json({
+      message: 'Database is not connected. Please try again in a moment.',
+    });
+    return false;
+  }
+  return true;
+};
 
 // @route   POST api/auth/register
 // @desc    Register a new user
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { email, password } = req.body;
+  if (!ensureDb(res)) return;
+
+  const email = req.body.email?.trim().toLowerCase();
+  const { password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Please enter all fields' });
@@ -62,7 +76,10 @@ router.post('/register', async (req, res) => {
 // @desc    Authenticate user and get token
 // @access  Public
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  if (!ensureDb(res)) return;
+
+  const email = req.body.email?.trim().toLowerCase();
+  const { password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Please enter all fields' });

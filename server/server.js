@@ -36,12 +36,14 @@ app.use(
   cors({
     origin(origin, callback) {
       if (isAllowedOrigin(origin)) {
-        callback(null, true);
+        callback(null, origin || true);
       } else {
         callback(null, false);
       }
     },
-    credentials: true,
+    credentials: false,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 

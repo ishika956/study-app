@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import api from '../utils/api';
+import api, { getApiErrorMessage } from '../utils/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -91,9 +91,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
 
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        'Registration failed.';
+      const message = getApiErrorMessage(error, 'Registration failed.');
 
       toast.error(message, {
         id: 'auth-toast',

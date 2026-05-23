@@ -1,11 +1,10 @@
 {
-  "buildCommand": "npm --prefix client run build",
+  "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
-  "installCommand": "npm --prefix client install",
-  "framework": null,
+  "installCommand": "echo skip",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
   ]

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
 import { BookOpen, Mail, Lock, Sun, Moon, ArrowRight } from 'lucide-react';
 
 const Register = () => {
@@ -13,6 +14,11 @@ const Register = () => {
 
   const { register, user } = useAuth();
   const navigate = useNavigate();
+
+  // Wake Render backend on cold start (free tier sleeps when idle)
+  useEffect(() => {
+    api.get('/health').catch(() => {});
+  }, []);
 
   // Detect and set theme on load
   useEffect(() => {

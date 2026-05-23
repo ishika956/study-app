@@ -1,23 +1,40 @@
 import axios from 'axios';
 
+const PRODUCTION_API = 'https://study-app-1-dyv3.onrender.com';
+
 const resolveBaseURL = () => {
-  const configured = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+  const configured = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
 
   if (configured) {
-    return `${configured}/api`;
+    return configured.endsWith('/api') ? configured : `${configured}/api`;
   }
 
-  // Local dev: Vite proxies /api to localhost:5000
   if (import.meta.env.DEV) {
     return '/api';
   }
 
-  // Production fallback when VITE_API_URL is not set on Vercel
-  return 'https://study-app-1-dyv3.onrender.com/api';
+  return `${PRODUCTION_API}/api`;
+};
+
+export const getApiErrorMessage = (error, fallback) => {
+  if (error.response?.data?.message) {
+    return error.response.data.message;
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return 'Server is waking up (Render free tier). Wait a minute and try again.';
+  }
+
+  if (!error.response) {
+    return 'Cannot reach the server. Check your internet or try again in a minute.';
+  }
+
+  return fallback;
 };
 
 const api = axios.create({
   baseURL: resolveBaseURL(),
+  timeout: 120000,
 });
 
 api.interceptors.request.use(
