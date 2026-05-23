@@ -3,26 +3,38 @@ const clean = (value) =>
     .trim()
     .replace(/^['"]|['"]$/g, '');
 
-const resolveMongoUri = () => {
-  const candidates = [
-    process.env.MONGO_URI,
-    process.env.MONGODB_URI,
-    process.env.DATABASE_URL,
-  ]
-    .map(clean)
-    .filter((uri) => uri.startsWith('mongodb'));
+const MONGO_ENV_KEYS = [
+  'MONGO_URI',
+  'MONGODB_URI',
+  'MONGODB_URL',
+  'MONGO_URL',
+  'DATABASE_URL',
+  'ATLAS_URI',
+];
 
-  if (candidates.length > 0) {
-    return candidates[0];
+const resolveMongoUri = () => {
+  for (const key of MONGO_ENV_KEYS) {
+    const uri = clean(process.env[key]);
+    if (uri.startsWith('mongodb')) {
+      return { uri, source: key };
+    }
   }
 
   if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
-    throw new Error(
-      'MONGO_URI is not set on the server. Add your MongoDB Atlas connection string in Render → Environment.'
-    );
+    return {
+      uri: null,
+      source: null,
+      error:
+        'MONGO_URI is not set on Render. Go to Render → your service → Environment → add MONGO_URI with your MongoDB Atlas connection string.',
+    };
   }
 
-  return 'mongodb://127.0.0.1:27017/studyapp';
+  return { uri: 'mongodb://127.0.0.1:27017/studyapp', source: 'default' };
+};
+
+const isMongoConfigured = () => {
+  const { uri } = resolveMongoUri();
+  return Boolean(uri);
 };
 
 const resolveJwtSecret = () => {
@@ -41,4 +53,9 @@ const resolveJwtSecret = () => {
   return 'supersecretjwtkey12345!';
 };
 
-module.exports = { resolveMongoUri, resolveJwtSecret, clean };
+module.exports = {
+  resolveMongoUri,
+  resolveJwtSecret,
+  isMongoConfigured,
+  clean,
+};

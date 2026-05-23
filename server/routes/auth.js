@@ -2,29 +2,16 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const User = require('../models/User');
 const { resolveJwtSecret } = require('../config/env');
 const { mapAuthError } = require('../utils/authErrors');
-
-const ensureDb = (res) => {
-  if (mongoose.connection.readyState !== 1) {
-    res.status(503).json({
-      message: 'Database is not connected. Please try again in a moment.',
-    });
-    return false;
-  }
-  return true;
-};
+const { ensureDb } = require('../utils/ensureDb');
 
 const signToken = (userId) =>
   jwt.sign({ id: userId.toString() }, resolveJwtSecret(), { expiresIn: '7d' });
 
-// @route   POST api/auth/register
-// @desc    Register a new user
-// @access  Public
 router.post('/register', async (req, res) => {
-  if (!ensureDb(res)) return;
+  if (!(await ensureDb(res))) return;
 
   const email = req.body.email?.trim().toLowerCase();
   const { password } = req.body;
@@ -70,11 +57,8 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// @route   POST api/auth/login
-// @desc    Authenticate user and get token
-// @access  Public
 router.post('/login', async (req, res) => {
-  if (!ensureDb(res)) return;
+  if (!(await ensureDb(res))) return;
 
   const email = req.body.email?.trim().toLowerCase();
   const { password } = req.body;

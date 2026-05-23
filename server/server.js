@@ -4,7 +4,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 
 const corsMiddleware = require('./middleware/cors');
-const connectDB = require('./config/db');
+const { connectWithRetry, getDbStatus, waitForDb } = require('./config/db');
+const { getDbHint } = require('./utils/ensureDb');
 
 const app = express();
 
@@ -21,15 +22,26 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', async (req, res) => {
-  const dbState = mongoose.connection.readyState;
-  const dbStatus =
-    dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
+  const dbInfo = getDbStatus();
 
-  if (dbState !== 1) {
+  if (!dbInfo.configured) {
     return res.status(503).json({
       status: 'error',
-      db: dbStatus,
+      db: 'not_configured',
+      message: 'MONGO_URI is missing on the server',
+      hint: getDbHint(),
+    });
+  }
+
+  const connected = await waitForDb(25000);
+
+  if (!connected) {
+    return res.status(503).json({
+      status: 'error',
+      db: dbInfo.status,
       message: 'Database is not connected',
+      hint: getDbHint(),
+      error: dbInfo.lastError || undefined,
     });
   }
 
@@ -44,6 +56,7 @@ app.get('/api/health', async (req, res) => {
       status: 'error',
       db: 'disconnected',
       message: 'Database ping failed',
+      hint: getDbHint(),
     });
   }
 });
@@ -75,8 +88,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 
-  connectDB().catch((error) => {
-    console.error('MongoDB connection failed:', error.message);
-    console.error('API is up but auth/data routes will return 503 until MONGO_URI is fixed.');
-  });
+  connectWithRetry();
 });
