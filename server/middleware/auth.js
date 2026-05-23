@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { resolveJwtSecret } = require('../config/env');
 
 const auth = (req, res, next) => {
   // Get token from header
@@ -17,7 +18,7 @@ const auth = (req, res, next) => {
   const token = parts[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkey12345!');
+    const decoded = jwt.verify(token, resolveJwtSecret());
     req.user = { id: decoded.id };
     next();
   } catch (error) {

@@ -167,11 +167,18 @@ Open **[http://localhost:3000](http://localhost:3000)** in your web browser, reg
 
 1. Create a **Web Service** with **Root Directory** set to `server`.
 2. **Build command:** `npm install` · **Start command:** `npm start`
-3. Add environment variables (see `.env.example`):
-   - `MONGO_URI` — MongoDB Atlas connection string (Atlas → Network Access → allow `0.0.0.0/0` for Render)
-   - `JWT_SECRET` — long random string
-   - `CLIENT_URL` — `https://study-app-liart.vercel.app` (comma-separate extra origins if needed)
-4. Health check path: `/api/health`
+3. **MongoDB Atlas (required for registration to work):**
+   - Go to [MongoDB Atlas](https://cloud.mongodb.com) → create a free cluster.
+   - **Database Access** → add a user with password (remember it).
+   - **Network Access** → **Add IP Address** → **Allow Access from Anywhere** (`0.0.0.0/0`).
+   - **Database** → **Connect** → **Drivers** → copy the connection string.
+   - Replace `<password>` with your user password and add database name:  
+     `mongodb+srv://user:YOUR_PASSWORD@cluster.xxxxx.mongodb.net/studyapp?retryWrites=true&w=majority`
+4. In Render → **Environment**, add:
+   - `MONGO_URI` — the Atlas string from step 3 (required; without this, register/login will fail)
+   - `JWT_SECRET` — long random string (32+ characters)
+   - `CLIENT_URL` — `https://study-app-liart.vercel.app`
+5. Health check path: `/api/health` — must return `"db": "connected"` after deploy
 
 ### Frontend on Vercel
 
@@ -186,5 +193,6 @@ Open **[http://localhost:3000](http://localhost:3000)** in your web browser, reg
 |--------|-----|
 | Login/register fails / network error | Set `VITE_API_URL` on Vercel; confirm Render service is awake (free tier cold start ~30–60s) |
 | CORS error in browser console | Set `CLIENT_URL` on Render to your exact Vercel URL |
+| Server error during registration | `MONGO_URI` missing or wrong on Render. Open `/api/health` — if `db` is not `connected`, fix Atlas URI and IP whitelist (`0.0.0.0/0`) |
 | 500 on auth | Check `MONGO_URI` on Render and Atlas IP whitelist |
 | Refresh on `/course/...` shows 404 | Ensure `vercel.json` rewrites are deployed |

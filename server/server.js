@@ -54,15 +54,32 @@ app.get('/', (req, res) => {
   res.send('Backend API is running...');
 });
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   const dbState = mongoose.connection.readyState;
   const dbStatus =
     dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
 
-  res.json({
-    status: 'ok',
-    db: dbStatus,
-  });
+  if (dbState !== 1) {
+    return res.status(503).json({
+      status: 'error',
+      db: dbStatus,
+      message: 'Database is not connected',
+    });
+  }
+
+  try {
+    await mongoose.connection.db.admin().ping();
+    res.json({
+      status: 'ok',
+      db: 'connected',
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      db: 'disconnected',
+      message: 'Database ping failed',
+    });
+  }
 });
 
 app.use('/api/auth', require('./routes/auth'));

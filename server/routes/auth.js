@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const { resolveJwtSecret } = require('../config/env');
+const { mapAuthError } = require('../utils/authErrors');
 
 const ensureDb = (res) => {
   if (mongoose.connection.readyState !== 1) {
@@ -14,6 +16,9 @@ const ensureDb = (res) => {
   }
   return true;
 };
+
+const signToken = (userId) =>
+  jwt.sign({ id: userId.toString() }, resolveJwtSecret(), { expiresIn: '7d' });
 
 // @route   POST api/auth/register
 // @desc    Register a new user
@@ -33,42 +38,35 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    // Check for existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Create user
-    const newUser = new User({
+    const savedUser = await User.create({
       email,
-      passwordHash
+      passwordHash,
     });
 
-    const savedUser = await newUser.save();
-
-    // Sign JWT token
-    const token = jwt.sign(
-      { id: savedUser._id },
-      process.env.JWT_SECRET || 'supersecretjwtkey12345!',
-      { expiresIn: '7d' }
-    );
+    const token = signToken(savedUser._id);
 
     res.status(201).json({
       token,
       user: {
-        id: savedUser._id,
-        email: savedUser.email
-      }
+        id: savedUser._id.toString(),
+        email: savedUser.email,
+      },
     });
-
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    const { status, message } = mapAuthError(
+      error,
+      'Server error during registration'
+    );
+    res.status(status).json({ message });
   }
 });
 
@@ -86,36 +84,29 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Validate password
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Sign JWT token
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || 'supersecretjwtkey12345!',
-      { expiresIn: '7d' }
-    );
+    const token = signToken(user._id);
 
     res.json({
       token,
       user: {
-        id: user._id,
-        email: user.email
-      }
+        id: user._id.toString(),
+        email: user.email,
+      },
     });
-
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    const { status, message } = mapAuthError(error, 'Server error during login');
+    res.status(status).json({ message });
   }
 });
 
